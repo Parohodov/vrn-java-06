@@ -1,10 +1,10 @@
 package ru.dataart.academy.java;
 
-import sun.net.util.URLUtil;
-
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -24,20 +24,32 @@ public class Calculator {
 
         int counter = 0;
 
-        try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
+        try (ZipInputStream zin = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
             ZipEntry entry;
-            while ((entry = in.getNextEntry()) != null) {
+            while ((entry = zin.getNextEntry()) != null) {
                 if (!entry.isDirectory()) {
-                    int readChar;
-                    while ((readChar = in.read()) != -1) {
-                        if (readChar == (int) character) {
-                            counter++;
-                        }
-                    }
+                    counter += countCharsInFile(zin, character);
                 }
+                zin.closeEntry();
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        return counter;
+    }
+
+    /**
+     * @param inStream - zip input stream
+     * @param wantedChar - a character which entries are needed to be counted
+     * @return - int - a number of wanted character entries
+     */
+    private int countCharsInFile(ZipInputStream inStream, char wantedChar) throws IOException {
+        int readChar;
+        int counter = 0;
+        while ((readChar = inStream.read()) != -1) {
+            if (readChar == (int) wantedChar) {
+                counter++;
+            }
         }
         return counter;
     }
@@ -48,37 +60,47 @@ public class Calculator {
      */
     public Integer getMaxWordLength(String zipFilePath) {
         //Task implementation
-        int currWordLen = 0;
-        int maxWordLen = 0;
+        int longestWordLen = 0;
 
         String checkedPath = getValidPath(zipFilePath);
         if (checkedPath == null) {
             return -1;
         }
 
-        try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
-            int space = ' ';
-            int eol = '\n';
-
+        try (ZipInputStream zin = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
             ZipEntry entry;
-            while ((entry = in.getNextEntry()) != null) {
+            while ((entry = zin.getNextEntry()) != null) { // obtaining next file
                 if (!entry.isDirectory()) {
-                    int readChar;
-                    while ((readChar = in.read()) != -1) {
-                        if (readChar == space || readChar == eol) {
-                            maxWordLen = Math.max(maxWordLen, currWordLen);
-                            currWordLen = 0;
-                        } else {
-                            currWordLen++;
-                        }
-                    }
-                    currWordLen = 0;
+                    longestWordLen = Math.max(longestWordLen, getLongestWordLength(zin));
                 }
+                zin.closeEntry();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return maxWordLen;
+        return longestWordLen;
+    }
+
+    /**
+     * @param inStream - path to zip archive with text files
+     * @return - a length of a longest word
+     */
+    private int getLongestWordLength(ZipInputStream inStream) throws IOException {
+        int space = ' ';
+        int eol = '\n';
+        int maxLen = 0;
+        int currLen = 0;
+
+        int readChar;
+        while ((readChar = inStream.read()) != -1) { // reading next file
+            if (readChar == space || readChar == eol) {
+                maxLen = Math.max(maxLen, currLen);
+                currLen = 0;
+            } else {
+                currLen++;
+            }
+        }
+        return maxLen;
     }
 
 
@@ -87,14 +109,14 @@ public class Calculator {
      * @param path - path to zip archive with text files
      * @return - a String that contains a correct path or null if the path is invalid or file doesn't exist
      */
-    public String getValidPath(String path) {
+    private String getValidPath(String path) {
         String uriString = "file://" + path;
-        String checkedPath = null;
+        String checkedPath;
 
-        try { // In case the path is URI
+        try { // In case the path is a URI
             URI uri = new URI(uriString);
             checkedPath = Paths.get(uri).toString();
-        } catch (URISyntaxException urlException) { // If it's not a URL it could be a file path
+        } catch (URISyntaxException urlException) { // If it's not a URI it could be a file path
             try {
                 Paths.get(path);
                 checkedPath = path;
@@ -105,6 +127,7 @@ public class Calculator {
         }
 
         if (!Files.exists(Paths.get(checkedPath))) {
+            System.out.println("File doesn't exist");
             return null;
         }
         return checkedPath;
