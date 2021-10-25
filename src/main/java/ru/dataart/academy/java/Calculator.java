@@ -4,7 +4,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.util.Arrays;
-import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -39,22 +38,6 @@ public class Calculator {
     }
 
     /**
-     * @param inStream - zip input stream
-     * @param wantedChar - a character which entries are needed to be counted
-     * @return - int - a number of wanted character entries
-     */
-    private int countCharsInFile(ZipInputStream inStream, char wantedChar) throws IOException {
-        int readChar;
-        int counter = 0;
-        while ((readChar = inStream.read()) != -1) {
-            if (readChar == (int) wantedChar) {
-                counter++;
-            }
-        }
-        return counter;
-    }
-
-    /**
      * @param zipFilePath - path to zip archive with text files
      * @return - max length
      */
@@ -71,7 +54,8 @@ public class Calculator {
             ZipEntry entry;
             while ((entry = zin.getNextEntry()) != null) { // obtaining next file
                 if (!entry.isDirectory()) {
-                    longestWordLen = Math.max(longestWordLen, getLongestWordLength(zin));
+//                    longestWordLen = Math.max(longestWordLen, getLongestWordLength(zin));
+                    longestWordLen = Math.max(longestWordLen, getLongestWordLength(zin, new Character[] {' ', '\n'}));
                 }
                 zin.closeEntry();
             }
@@ -103,12 +87,42 @@ public class Calculator {
         return maxLen;
     }
 
+    // Returns a longest word length in a file passed within a zip stream
+    private int getLongestWordLength(ZipInputStream inStream, Character[] separators) throws IOException {
+        int maxLen = 0;
+        int currLen = 0;
 
-    /**
-     * Checks if a String represents a correct path and returns valid path if it doesn't
-     * @param path - path to zip archive with text files
-     * @return - a String that contains a correct path or null if the path is invalid or file doesn't exist
-     */
+        int readChar;
+        while ((readChar = inStream.read()) != -1) { // reading next file
+            if (containsChar(separators, (char) readChar)) {
+                maxLen = Math.max(maxLen, currLen);
+                currLen = 0;
+            } else {
+                currLen++;
+            }
+
+        }
+        return maxLen;
+    }
+
+    // Checks if a character is a given separator or not
+    private boolean containsChar(Character[] separators, char character) {
+        return Arrays.stream(separators).anyMatch(ch -> ch == character);
+    }
+
+    //
+    private int countCharsInFile(ZipInputStream inStream, char wantedChar) throws IOException {
+        int readChar;
+        int counter = 0;
+        while ((readChar = inStream.read()) != -1) {
+            if (readChar == (int) wantedChar) {
+                counter++;
+            }
+        }
+        return counter;
+    }
+
+    // Checks if a path is a URI or a file path and if a file with this path exists
     private String getValidPath(String path) {
         String uriString = "file://" + path;
         String checkedPath;
