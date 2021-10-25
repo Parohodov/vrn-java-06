@@ -1,6 +1,9 @@
 package ru.dataart.academy.java;
 
+import sun.net.util.URLUtil;
+
 import java.io.*;
+import java.net.*;
 import java.nio.file.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -14,14 +17,14 @@ public class Calculator {
     public Integer getNumberOfChar(String zipFilePath, char character) {
         //Task implementation
 
-        String checkedPath = checkPath(zipFilePath);
+        String checkedPath = getValidPath(zipFilePath);
         if (checkedPath == null) {
             return -1;
         }
 
         int counter = 0;
 
-        try (ZipInputStream in = new ZipInputStream(new FileInputStream(checkedPath))) {
+        try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
             ZipEntry entry;
             while ((entry = in.getNextEntry()) != null) {
                 if (!entry.isDirectory()) {
@@ -43,18 +46,17 @@ public class Calculator {
      * @param zipFilePath - path to zip archive with text files
      * @return - max length
      */
-
     public Integer getMaxWordLength(String zipFilePath) {
         //Task implementation
         int currWordLen = 0;
         int maxWordLen = 0;
 
-        String checkedPath = checkPath(zipFilePath);
+        String checkedPath = getValidPath(zipFilePath);
         if (checkedPath == null) {
             return -1;
         }
 
-        try (ZipInputStream in = new ZipInputStream(new FileInputStream(checkedPath))) {
+        try (ZipInputStream in = new ZipInputStream(new BufferedInputStream(new FileInputStream(checkedPath)))) {
             int space = ' ';
             int eol = '\n';
 
@@ -81,15 +83,25 @@ public class Calculator {
 
 
     /**
-     * Checks if a String represents a correct path
+     * Checks if a String represents a correct path and returns valid path if it doesn't
      * @param path - path to zip archive with text files
-     * @return - a String that contains a correct path
+     * @return - a String that contains a correct path or null if the path is invalid or file doesn't exist
      */
-    public String checkPath(String path) {
-        String checkedPath = path;
+    public String getValidPath(String path) {
+        String uriString = "file://" + path;
+        String checkedPath = null;
 
-        if (checkedPath.charAt(0) == '/') {
-            checkedPath = checkedPath.substring(1);
+        try { // In case the path is URI
+            URI uri = new URI(uriString);
+            checkedPath = Paths.get(uri).toString();
+        } catch (URISyntaxException urlException) { // If it's not a URL it could be a file path
+            try {
+                Paths.get(path);
+                checkedPath = path;
+            } catch (InvalidPathException pathException) { // The path is invalid
+                System.out.println("Path is invalid");
+                return null;
+            }
         }
 
         if (!Files.exists(Paths.get(checkedPath))) {
